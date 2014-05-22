@@ -35,4 +35,14 @@ public class DMap {
 	    	}
 	    }
 	}
+
+	public boolean haveUnknown() {
+	    for (int i = 0; i < xDim; i++) {
+	    	for (int j = 0; j < yDim; j++) {
+	    		if (mapData[i][j] == 'n')
+	    			return true;
+	    	}
+	    }
+		return false;
+	}
 }
