@@ -13,7 +13,7 @@ public class Discovery {
 	static int WHITE_H;
 	
 	static int pos_x = -1;
-	static int pod_y = 3;
+	static int pos_y = 3;
 
 	private static void setColorValues(LightSensor light) {
 		String kolory[] = {"niebieski", "czerwony", "bialy"}; 
@@ -60,8 +60,10 @@ public class Discovery {
 		return "unknown";
 	}
 	
-	private static void moveOneFront(DifferentialPilot pilot) {
+	private static DMap moveOneFront(DifferentialPilot pilot, DMap mapa) {
         pilot.travel(200, true);
+        // Rozbić na dwa ruszania się + korygacja + sprawdzenie czy nie ma przeszkody
+        return mapa;
 	}
 	
 	public static void main(String[] args) {
@@ -95,11 +97,23 @@ public class Discovery {
 	        LCD.drawInt(value, 0,0);
 	        iterator++;
 		}*/
-	    
+		
+		/*1. Jeœli w (3,-1) - jedŸ do przodu o jeden.
+		2. Wybierz losowy nieznany punkt (ale 1-najbli¿szy w manhatañskiej, 2-przód ma priorytet)
+		3. Okreœl trasê do tego punktu.
+		4. Wykonuj “kroki” do niego i koryguj swoje po³o¿enie przy granicach pól.
+		5. Po wjechaniu na oczekiwane pole sprawdŸ kolor/przeszkodê, etc.
+		6. Jeœli przeszkoda
+		    a) sprawdŸ która i zapisz
+		b) wycofaj na poprzednie pole
+		7. Jeœli istniej¹ nieodkryte pola - przejdŸ do 2.
+		8. W przeciwnym przypadku zakoñcz dzia³anie*/
+		
+		mapa = moveOneFront(pilot, mapa);
+
 		while (mapa.haveUnknown()){
-			moveOneFront(pilot);
-		    while(!Button.ENTER.isDown()) {
-			}
+            way = mapa.findAWay(pos_x, pos_y); // W odległości manhatańskiej/taksówkowej
+            mapa = goAWay(way, mapa);
 		}
 
 		mapa.printOnDisplay();
