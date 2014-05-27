@@ -65,6 +65,13 @@ public class Discovery {
         // Rozbić na dwa ruszania się + korygacja + sprawdzenie czy nie ma przeszkody
         return mapa;
 	}
+
+	private static DMap goAWay(String way, DMap mapa) {
+		do {
+			way = ""; // Zmniejszanie o jeden znak �cie�ki po ka�dym kroku.
+		} while (way.length != 0);
+		return mapa;
+	}
 	
 	public static void main(String[] args) {
 		// TODO TUTAJ BADAMY MAPE!LightSensor light;
@@ -112,7 +119,7 @@ public class Discovery {
 		mapa = moveOneFront(pilot, mapa);
 
 		while (mapa.haveUnknown()){
-            way = mapa.findAWay(pos_x, pos_y); // W odległości manhatańskiej/taksówkowej
+            String way = mapa.findAWay(pos_x, pos_y); // W odległości manhatańskiej/taksówkowej
             mapa = goAWay(way, mapa);
 		}
 
