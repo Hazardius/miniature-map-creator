@@ -71,6 +71,7 @@ public class DMap {
 			}
 		}
 		// W tym momencie mamy listê "najbli¿szych pól" w tabelce wybrane!
+		way = "lfffrf";
 		return way;
 	}
 
@@ -81,6 +82,12 @@ public class DMap {
 	    			return true;
 	    	}
 	    }
+		return false;
+	}
+
+	public boolean isUnknown(int pos_x, int pos_y) {
+		if (mapData[pos_x][pos_y] == 'n')
+			return true;
 		return false;
 	}
 }

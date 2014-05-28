@@ -1,7 +1,12 @@
 package mapDiscovery;
 
 import lejos.nxt.*;
+import lejos.robotics.localization.OdometryPoseProvider;
 import lejos.robotics.navigation.DifferentialPilot;
+import lejos.robotics.navigation.Pose;
+import lejos.robotics.objectdetection.Feature;
+import lejos.robotics.objectdetection.FeatureDetector;
+import lejos.robotics.objectdetection.RangeFeatureDetector;
 
 public class Discovery {
 	static int BLUE_L;
@@ -14,6 +19,7 @@ public class Discovery {
 	
 	static int pos_x = -1;
 	static int pos_y = 3;
+	static int orient = 0; // 0-N, 1-E, 2-S, 3-W
 
 	private static void setColorValues(LightSensor light) {
 		String kolory[] = {"niebieski", "czerwony", "bialy"}; 
@@ -60,31 +66,115 @@ public class Discovery {
 		return "unknown";
 	}
 	
-	private static DMap moveOneFront(DifferentialPilot pilot, DMap mapa) {
-        pilot.travel(200, true);
+	private static DMap moveOneFront(DifferentialPilot pilot, LightSensor light, DMap mapa) {
+		int new_val = light.getNormalizedLightValue();
+		String start_color = color(new_val);
+		int old_val = new_val;
+		String new_color = start_color;
+		pilot.forward();
+		do {
+			new_val = light.getNormalizedLightValue();
+			new_color = color(new_val);
+		} while (Math.abs(old_val - new_val) < 30);
+		pilot.stop();
+		correctPosition(pilot, light);
+		pilot.travel(150); // skorygowac aby nie wjezdzac na obiekty!!
+		int oldx = pos_x;
+		int oldy = pos_y;
+		switch (orient) {
+		    case 0: pos_x++;
+		    	    break;
+		    case 1: pos_y++;
+	    	        break;
+		    case 2: pos_x--;
+	    	        break;
+		    case 3: pos_y--;
+	    	        break;
+		};
+		if (mapa.isUnknown(pos_x, pos_y)) {
+	        UltrasonicSensor us = new UltrasonicSensor(SensorPort.S1);
+	        float MAX_DISTANCE = 5.0f; // In centimeters
+	        FeatureDetector fd = new RangeFeatureDetector(us, MAX_DISTANCE, 500);
+	    	Feature result = fd.scan();
+	    	if(result != null) {
+	    		new_val = light.getNormalizedLightValue();
+	    		if (new_val >= RED_L) {
+	    			mapa.setField(pos_x, pos_y, 'H');
+	    		} else {
+	    			mapa.setField(pos_x, pos_y, 'P');
+	    		}
+	    		pilot.travel(-100.0f);
+	    		pos_x = oldx;
+	    		pos_y = oldy;
+	        } else {
+	    		new_color = color(light.getNormalizedLightValue());
+	    		if (new_color == "blue") {
+		        	mapa.setField(pos_x, pos_y, 'N');
+	    		} else if (new_color == "red") {
+		        	mapa.setField(pos_x, pos_y, 'C');
+	    		} else {
+	            	mapa.setField(pos_x, pos_y, 'B');
+	    		}
+	    		pilot.travel(50);
+	        }
+		} else {
+			pilot.travel(50);
+		}
         // Rozbić na dwa ruszania się + korygacja + sprawdzenie czy nie ma przeszkody
         return mapa;
 	}
 
-	private static DMap goAWay(String way, DMap mapa) {
+	private static void correctPosition(DifferentialPilot pilot,
+			LightSensor light) {
+		int start_val = light.getNormalizedLightValue();
+		int now_val = start_val;
+		pilot.rotateLeft();
+		while (Math.abs(start_val - now_val) < 10) {
+			now_val = light.getNormalizedLightValue();
+		}
+		pilot.stop();
+		OdometryPoseProvider pp = new OdometryPoseProvider(pilot);
+        Pose pose;
+        pilot.rotateRight();
+        do {
+        	start_val = light.getNormalizedLightValue();
+        } while (start_val == now_val);
+        pose  = pp.getPose();
+        pilot.rotate(pose.getHeading() / 2.0f);
+	}
+
+	private static DMap goAWay(String way, DifferentialPilot pilot, LightSensor light, DMap mapa) {
 		do {
-			way = ""; // Zmniejszanie o jeden znak �cie�ki po ka�dym kroku.
-		} while (way.length != 0);
+			char next_l = way.charAt(0);
+			way = way.substring(1);
+			if (next_l == 'r') {
+				pilot.rotate(90.0f);
+				orient = (orient + 1) % 4;
+			} else if (next_l == 'l') {
+				pilot.rotate(-90.0f);
+				orient = (orient - 1);
+				if (orient == -1) {
+					orient = 3;
+				}
+			} else if (next_l == 'f') {
+				mapa = moveOneFront(pilot, light, mapa);
+			}
+		} while (way.length() != 0);
 		return mapa;
 	}
 	
 	public static void main(String[] args) {
-		// TODO TUTAJ BADAMY MAPE!LightSensor light;
 		LightSensor light = new LightSensor(SensorPort.S4);
-	    DifferentialPilot pilot = new DifferentialPilot(56, 128, Motor.C, Motor.B);
+	    DifferentialPilot pilot = new DifferentialPilot(56, 128, Motor.B, Motor.C);
 	    pilot.setTravelSpeed(75.0f);
+	    pilot.setRotateSpeed(10.0f);
 		
-		/*setColorValues(light);
+		setColorValues(light);
 		
-		LCD.clear();*/
+		LCD.clear();
 
-		/*int iterator = 0;
-	    LCD.clear();
+		int iterator = 0;
+	    /*LCD.clear();
 		LCD.drawString("w " + WHITE_L + " " + WHITE_H, 0, 0);
 		LCD.drawString("r " + RED_L + " " + RED_H, 0, 1);
 		LCD.drawString("b " + BLUE_L + " " + BLUE_H, 0, 2);*/
@@ -105,22 +195,13 @@ public class Discovery {
 	        iterator++;
 		}*/
 		
-		/*1. Jeœli w (3,-1) - jedŸ do przodu o jeden.
-		2. Wybierz losowy nieznany punkt (ale 1-najbli¿szy w manhatañskiej, 2-przód ma priorytet)
-		3. Okreœl trasê do tego punktu.
-		4. Wykonuj “kroki” do niego i koryguj swoje po³o¿enie przy granicach pól.
-		5. Po wjechaniu na oczekiwane pole sprawdŸ kolor/przeszkodê, etc.
-		6. Jeœli przeszkoda
-		    a) sprawdŸ która i zapisz
-		b) wycofaj na poprzednie pole
-		7. Jeœli istniej¹ nieodkryte pola - przejdŸ do 2.
-		8. W przeciwnym przypadku zakoñcz dzia³anie*/
-		
-		mapa = moveOneFront(pilot, mapa);
+		mapa = moveOneFront(pilot, light, mapa);
+		mapa.setField(pos_x, pos_y, 'S');
 
 		while (mapa.haveUnknown()){
             String way = mapa.findAWay(pos_x, pos_y); // W odległości manhatańskiej/taksówkowej
-            mapa = goAWay(way, mapa);
+        	LCD.drawString(way, 0, 4);
+            mapa = goAWay(way, pilot, light, mapa);
 		}
 
 		mapa.printOnDisplay();
