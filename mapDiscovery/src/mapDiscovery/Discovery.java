@@ -22,58 +22,103 @@ public class Discovery {
     static Pose nice_pose;
 
     private static void setColorValues(LightSensor light) {
-        String kolory[] = {"niebieski", "czarny", "czerwony", "bialy"}; 
+        String kolory[] = {"bialy", "czarny", "niebieski", "czerwony"}; 
         int wartosci[] = new int[4];
         for (int i=0; i<4; i++) {
             LCD.clear();
-            LCD.drawString("Pokaz " + kolory[i], 0, 0);
+            LCD.drawString("Pokaz 1 " + kolory[i], 0, 0);
             LCD.drawString("I nacisnij prawy", 0, 1);
             while(!Button.RIGHT.isDown()) {
                 int value = light.getNormalizedLightValue();
                 LCD.drawInt(value, 0,2);
             }
             while(!Button.RIGHT.isUp()) {}
-            int value = light.getNormalizedLightValue();
-            wartosci[i] = value;
+            int v_min = light.getNormalizedLightValue();
+            /*int v_max = v_min;*/
+            /*int tab[] = new int[3];
+            for (int j=1; j<4; j++) {
+                LCD.clear();
+                LCD.drawString("Pokaz " + (j + 1) + " " + kolory[i], 0, 0);
+                while(!Button.RIGHT.isDown()) {
+                    int next_v = light.getNormalizedLightValue();
+                    LCD.drawInt(next_v, 0,2);
+                }
+                while(!Button.RIGHT.isUp()) {}
+                int temp = light.getNormalizedLightValue();
+                tab[j-1] = temp;
+                /*if (temp > v_max) v_max = temp;
+                else if (temp < v_min) v_min = temp;*/
+            //}*/
+            //wartosci[i] = Math.round((v_min + tab[0] + tab[1] + tab[2]) / 4);
+            wartosci[i] = v_min;
+            /*switch (i){
+	            case 0: WHITE_L = v_min - 10;
+	                    WHITE_H = v_max + 100;
+	                    break;
+	            case 1: BLACK_L = v_min;
+	                    BLACK_H = v_max;
+	                    break;
+	            case 2: BLUE_L = v_min - 100;
+	                    BLUE_H = v_max;
+	                    break;
+	            case 3: RED_L = v_min;
+	                    RED_H = v_max;
+	                    break;
+            }*/
         }
-        BLUE_L = wartosci[0] - 30;
-        int temp = wartosci[1] - wartosci[0];
-        if (temp < 40){
-            BLUE_H = wartosci[0] + (int)Math.floor(temp/2);
-            BLACK_L = BLUE_H;
-        } else {
-            BLUE_H = wartosci[0] + 15;
-            BLACK_L = wartosci[1] - 15;
+        WHITE_L = wartosci[0];
+        BLACK_L = wartosci[1];
+        //BLUE_L = wartosci[2];
+        RED_L = wartosci[3];
+        /*if (RED_H < WHITE_L) {
+        	WHITE_L = RED_H;
         }
-        temp = wartosci[2] - wartosci[1];
-        if (temp < 40){
-            BLACK_H = wartosci[1] + (int)Math.floor(temp/3);
-            RED_L = BLACK_H;
-        } else {
-            BLACK_H = wartosci[1] + 15;
-            RED_L = wartosci[2] - 15;
-        }
-        temp = wartosci[3] - wartosci[2];
-        if (temp < 40){
-            RED_H = wartosci[2] + (int)Math.floor(temp/3);
-            WHITE_L = RED_H;
-        } else {
-            RED_H = wartosci[2] + 15;
-            WHITE_L = wartosci[3] - 15;
-        }
-        WHITE_H = wartosci[3] + 30;
+        if (BLACK_H < RED_L) {
+	        int diff = Math.abs(BLACK_H - RED_L);
+	        BLACK_H = BLACK_H + Math.round(2 * diff / 3.0f) + 1;
+	        RED_L = BLACK_H;
+        }*/
     }
     
     private static String color(int value) {
+    	int b_d, k_d, r_d, w_d;
+
+    	//b_d = Math.abs(value - BLUE_L);
+    	int min;// = b_d;
+    	String ret_val = "blue";
+    	k_d = Math.abs(value - BLACK_L);
+    	//if (k_d < min) {
+    		min = k_d;
+    		ret_val = "black";
+    	//}
+    	r_d = Math.abs(value - RED_L);
+    	if (r_d < min) {
+    		min = r_d;
+    		ret_val = "red";
+    	}
+    	w_d = Math.abs(value - WHITE_L);
+    	if (w_d < min) {
+    		min = w_d;
+    		ret_val = "white";
+    	}
+    	return ret_val;
+
+        /*if ((value > BLACK_L)&&(value <= BLACK_H))
+            return "black";
         if ((value > BLUE_L)&&(value <= BLUE_H))
             return "blue";
-        if ((value > RED_L)&&(value <= RED_H))
-            return "red";
-        if ((value > BLACK_L)&&(value <= BLACK_H))
-            return "black";
         if ((value > WHITE_L)&&(value <= WHITE_H))
             return "white";
-        return "unknown";
+        if ((value > RED_L)&&(value <= RED_H))
+            return "red";
+        return "unknown";*/
+    }
+    
+    private static String f_color(int value) {
+    	String color = color(value);
+    	if (color.contentEquals("black"))
+    		return "blue";
+    	return color;
     }
     
     private static DMap moveOneFront(DifferentialPilot pilot, LightSensor light, DMap mapa) {
@@ -85,10 +130,18 @@ public class Discovery {
         do {
         	new_col_val = light.getNormalizedLightValue();
             new_color = color(new_col_val);
-        } while (Math.abs(new_col_val - new_val) < 20);
+        } while (new_color.contentEquals(start_color));
+    	/*LCD.drawString(new_color, 0, 4);
+        do {
+        	new_col_val = light.getNormalizedLightValue();
+            new_color = color(new_col_val);
+        } while (new_color.contentEquals("black"));*/
         pilot.stop();
+        if (start_color.contentEquals("black")){
+        	pilot.travel(5);
+        } else pilot.travel(30);
         correctPosition(pilot, light);
-        pilot.travel(100); // skorygowac aby nie wjezdzac na obiekty!!
+        //pilot.travel(100); // skorygowac aby nie wjezdzac na obiekty!!
         switch (orient) {
             case 0: pos_y++;
                     break;
@@ -99,67 +152,76 @@ public class Discovery {
             case 3: pos_x--;
                     break;
         };
-        if (mapa.isUnknown(pos_x, pos_y)) {
-            new_color = color(light.getNormalizedLightValue());
-            if (new_color == "blue") {
-                mapa.setField(pos_x, pos_y, 'N');
-            } else if (new_color == "red") {
-                mapa.setField(pos_x, pos_y, 'C');
-            } else {
-                mapa.setField(pos_x, pos_y, 'B');
-            }
+        new_color = f_color(light.getNormalizedLightValue());
+    	LCD.drawString(new_color, 0, 4);
+        if (new_color.contentEquals("blue")) {
+            mapa.setField(pos_x, pos_y, 'N');
+        } else if (new_color.contentEquals("red")) {
+            mapa.setField(pos_x, pos_y, 'C');
+        } else {
+            mapa.setField(pos_x, pos_y, 'B');
         }
         return mapa;
     }
 
     private static void correctPosition(DifferentialPilot pilot,
             LightSensor light) {
+    	//pilot.travel(7);
         int start_val = light.getNormalizedLightValue();
         int now_val = start_val;
-        pilot.rotateLeft();
-        // TUTAJ ZMIENIAC 1
         String start_c = color(start_val);
         String now_c = color(now_val);
+        pilot.rotateLeft();
         do {
             now_val = light.getNormalizedLightValue();
             now_c = color(now_val);
-        } while (start_c.contentEquals(now_c));
+        } while (!now_c.contentEquals("black"));
         pilot.stop();
+        
+        //pilot.rotate(5.0f);
+        String out = color(light.getNormalizedLightValue());
+        //pilot.rotate(-5.0f);
         OdometryPoseProvider pp = new OdometryPoseProvider(pilot);
         Pose pose;
+        
         pilot.rotateRight();
+		try {
+			Thread.sleep(250);
+		} catch (InterruptedException e1) {
+			e1.printStackTrace();
+		}
+        do {
+            now_val = light.getNormalizedLightValue();
+            now_c = color(now_val);
+        } while (!now_c.contentEquals(out));
+        pose  = pp.getPose();
+        pilot.rotate(-1.0 * (pose.getHeading() / 2.0f));
+
+        pp = new OdometryPoseProvider(pilot);
+        now_val = light.getNormalizedLightValue();
+        now_c = color(now_val);
+        start_val = now_val;
+        start_c = now_c;
+        pilot.forward();
         try {
-			Thread.sleep(500);
+			Thread.sleep(2500);
 		} catch (InterruptedException e) {
 			e.printStackTrace();
 		}
-        do {
-            start_val = light.getNormalizedLightValue();
-        } while (Math.abs(start_val - now_val) == 0);
-        // TUTAJ ZMIENIAC 2
-        pose  = pp.getPose();
-        pilot.rotate(pose.getHeading() / -2.0f);
-        
-
-		float diff=0;
-		pose = navigator.getPose();
-		if(kierunek == Kierunek.N || kierunek == Kierunek.S)
-            diff = Math.round((pose.getX()-1)/dist) - (pose.getX()-1)/dist;
-		else
-			diff = Math.round((-pose.getY()-1)/dist) - (-pose.getY()-1)/dist;
-        if(diff != 0)
-		{
-			navigator.travel(dist*diff);
-                        //przejscie z X.eps na x i przeskalowanie na X - usuniecie .eps
-			pose.setLocation(scale(reScale(pose.getX())), -scale(reScale(-pose.getY())));
-			navigator.setPose(pose);
-		}
+    	now_val = light.getNormalizedLightValue();
+    	now_c = color(now_val);
+        while (!now_c.contentEquals("black")) {
+        	now_val = light.getNormalizedLightValue();
+        	now_c = color(now_val);
+        }
+        pilot.stop();
+        pilot.travel((pp.getPose().getX() / -2.0f) + 30.0f);
+        return;
     }
 
     private static DMap goAWay(String way, DifferentialPilot pilot, LightSensor light, DMap mapa) {
-        do {
-            char next_l = way.charAt(0);
-            way = way.substring(1);
+    	for (int i=0; i<way.length(); i++) {
+            char next_l = way.charAt(i);
             if (next_l == 'r') {
                 pilot.rotate(-90.0f);
                 orient = (orient + 1) % 4;
@@ -172,7 +234,7 @@ public class Discovery {
             } else if (next_l == 'f') {
                 mapa = moveOneFront(pilot, light, mapa);
             }
-        } while (way.length() != 0);
+        };
         return mapa;
     }
     
@@ -180,7 +242,7 @@ public class Discovery {
         LightSensor light = new LightSensor(SensorPort.S4);
         DifferentialPilot pilot = new DifferentialPilot(56, 128, Motor.C, Motor.B);
         pilot.setTravelSpeed(75.0f);
-        pilot.setRotateSpeed(10.0f);
+        pilot.setRotateSpeed(25.0f);
         
         setColorValues(light);
         
@@ -194,9 +256,6 @@ public class Discovery {
         LCD.drawString("k " + BLACK_L + " " + BLACK_H, 0, 3);*/
         while(!Button.ENTER.isDown()) {
         }
-
-        OdometryPoseProvider pp = new OdometryPoseProvider(pilot);
-        nicepose = pp.getPose();
         
         DMap mapa = new DMap();
 
@@ -216,12 +275,11 @@ public class Discovery {
         mapa.setField(pos_x, pos_y, 'S');
 
         while (mapa.unknownCount() > 0){
-        	LCD.drawInt(mapa.unknownCount(), 0, 5);
-    		Thread.sleep(1000);
+        	LCD.drawInt(mapa.unknownCount(), 0, 7);
             String way = mapa.findAWay(pos_x, pos_y, orient); // W odległości manhatańskiej/taksówkowej
 
-        	LCD.drawString(way, 0, 4);
-			Thread.sleep(1000);
+        	//LCD.drawString("" + pos_x + "x" + pos_y, 0, 3);
+        	//LCD.drawString(way, 0, 4);
             mapa = goAWay(way, pilot, light, mapa);
         }
 

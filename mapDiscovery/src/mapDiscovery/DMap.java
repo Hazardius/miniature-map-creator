@@ -48,11 +48,14 @@ public class DMap {
                 sSet = true;
                 cSet = false;
                 nSet = false;
+                unknown++;
             }
             if (value == 'C') cSet = true;
             if (value == 'N') nSet = true;
             if (sSet && cSet && nSet) whiteAll();
-            unknown--;
+            else {
+                unknown--;
+            }
         }
     }
     
@@ -60,7 +63,7 @@ public class DMap {
         LCD.clear();
         for (int i = 0; i < xDim; i++) {
             for (int j = 0; j < yDim; j++) {
-                LCD.drawString("" + mapData[i][j], i,j);
+                LCD.drawString("" + mapData[i][j], i, yDim - j - 1);
             }
         }
     }
@@ -79,7 +82,7 @@ public class DMap {
 
 	public String findAWay(int pos_x, int pos_y, int orient) {
         switch (orient) {
-	        case 0: if (pos_y == 3) {
+	        case 0: if (pos_y == yDim - 1) {
         	        	return "lf";
         	        } else {
 		        	    return "f";
@@ -90,10 +93,10 @@ public class DMap {
 			        } else {
 		        	    return "f";
 			        }
-	        case 3: if (pos_x % 2 == 1) {
-			        	return "fl";
+	        case 3: if (pos_y % 2 == 1) {
+			        	return "lf";
 			        } else {
-		        	    return "fr";
+		        	    return "rf";
 			        }
         };
         return "";
