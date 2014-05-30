@@ -130,7 +130,7 @@ public class Discovery {
         do {
         	new_col_val = light.getNormalizedLightValue();
             new_color = color(new_col_val);
-        } while (new_color.contentEquals(start_color));
+        } while (!new_color.contentEquals("black"));
     	/*LCD.drawString(new_color, 0, 4);
         do {
         	new_col_val = light.getNormalizedLightValue();
@@ -169,7 +169,6 @@ public class Discovery {
     	//pilot.travel(7);
         int start_val = light.getNormalizedLightValue();
         int now_val = start_val;
-        String start_c = color(start_val);
         String now_c = color(now_val);
         pilot.rotateLeft();
         do {
@@ -195,13 +194,18 @@ public class Discovery {
             now_c = color(now_val);
         } while (!now_c.contentEquals(out));
         pose  = pp.getPose();
-        pilot.rotate(-1.0 * (pose.getHeading() / 2.0f));
+        
+        double rotation = pose.getHeading() * -1.0f;
+        if (!color(start_val).contentEquals("black")){
+        	rotation = rotation / 2.0f;
+        }
+        
+        pilot.rotate(rotation);
 
         pp = new OdometryPoseProvider(pilot);
         now_val = light.getNormalizedLightValue();
         now_c = color(now_val);
         start_val = now_val;
-        start_c = now_c;
         pilot.forward();
         try {
 			Thread.sleep(2500);
